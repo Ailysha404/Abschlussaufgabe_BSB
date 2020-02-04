@@ -13,6 +13,8 @@
 #evtl datei mit output speichern zur nachverfolgung
 #präsentation 21.02, ~20 min als team, abgabe am tag selbst
 
+#idea: skip upper comment lines by for loop and if for @
+
 import sys
 import argparse
 import matplotlib.pyplot as plt
