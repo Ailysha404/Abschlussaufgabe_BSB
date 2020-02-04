@@ -14,6 +14,7 @@
 #präsentation 21.02, ~20 min als team, abgabe am tag selbst
 
 #idea: skip upper comment lines by for loop and if for @
+#readlines writing with if condition? eg only saving 3 of the 4 lines?
 
 import sys
 import argparse
