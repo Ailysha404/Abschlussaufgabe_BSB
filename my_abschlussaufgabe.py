@@ -68,9 +68,12 @@ def Qualitaet(datei,phred=None):
 def __main__():
 
     arguments = Parser()
-    file = open(arguments.Dateipfad)
-    inhalt = file.readlines()[0:8] #lines als Liste gespeichert - 0:id 1:seq 2:id 3:score und multiple...
-    file.close()
+    with open(arguments.Dateipfad) as inhalt:
+        for lines in inhalt:
+            
+    #file = open(arguments.Dateipfad)
+    #inhalt = file.readlines()[0:8] #lines als Liste gespeichert - 0:id 1:seq 2:id 3:score und multiple...
+    #file.close()
     print(Qualitaet(inhalt,arguments.opt))
     #scores_seq = Qualitaet(inhalt) #Dictionary mit key ids, values score
     #print(f"{scores_seq.keys()} : {scores_seq.values()}")
