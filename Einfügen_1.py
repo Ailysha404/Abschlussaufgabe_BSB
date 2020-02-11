@@ -8,12 +8,12 @@ def calculation():
     
     #Speichern in einer Tabelle inklusive durchschnittlicher Readlänge zu dem Zeitpunkt
     pass #Tabelle
-    ||||||<tablewidth="80%">'''Calculation_Data'''||
-    ||<:> Mean ||<:>Median ||<:>Standard deviation ||<:>Timing||<:>Average read length||
+    return (||||<tablewidth="80%">'''Calculation_Data'''||
+    ||<:> Mean ||<:>Median ||<:>Standard deviation ||<:>Timing||<:>Average read length||)
 
     '''Durchführen vor dem Filtern, nachdem Filtern(vor dem Trimmen)
-    und nach dem Trimmen für GC_Gehalt und Qualität der Reads
-    (vielleicht immer mit Durchschnittlicher Readlänge)'''
+    und nach dem Trimmen für GC_Gehalt und Verteilung der Readlängen
+    (immer mit Durchschnittlicher Readlänge)'''
     
     return 
 
