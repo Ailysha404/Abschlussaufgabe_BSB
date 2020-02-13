@@ -20,14 +20,33 @@ class Read:
         self.sequenz = content[1][0:len(self.quality)] #sequence-string
 
 
-def qualitaet(content, alphabet, phred):
-    """Create Phred-Score dictionary and translate ASCII-character into score.
-    Append score to value list.
-    """
-    values = []
-    values += [alphabet[str(letter)] for letter in content[3]]
+def Parser():
+    """Parses command line input when starting script."""
+    input_parser = argparse.ArgumentParser(description="Qualitätsauswertung für FASTA-Dateien")
+    input_parser.add_argument("Dateipfad", help="Dateipfad zur FASTA-Datei")
+    input_parser.add_argument('-p','--phred', dest='phred', default=None, help="Optionale manuelle Angabe des Phred-Formats, 33 oder 64")
+    input_parser.add_argument('-t','--trim', dest='trim_val', help="Optionale manuelle Angabe des Trimming-Scores",default=25)
+    input_parser.add_argument('-c','--cutoff', dest='cutoff', help="Optionale manuelle Angabe des Durchschnittscores, bei dem ein Read komplett verworfen wird.",default=20)
+    input_parser.add_argument('-m','--minl', dest='minlength', help="Optionale manuelle Angabe der minimalen Länge in Basen, die ein getrimmter Read bei der Auswertung haben muss.",default=20)
+    input_parser.add_argument('-tab','--table', dest='save_table', help="Optionale Angabe eines Dateipfades zum Speichern der Datentabelle", default=None)
+    input_parser.add_argument('-plt','--plot', dest='save_plot', help="Optionale Angabe eines Dateipfades zum Speichern der Datenplots", default=None)
+    input_parser.add_argument('-i','--interaktiv', dest='interaktiv', action="store_true", help="Aktivierung des kommentierten interaktiven Modus")
+    arguments = input_parser.parse_args() #Erstellen dictionary, Zugriff auf Argument über Namen
 
-    return values
+    return arguments
+
+
+def alphabet_ascii(phred, ascii):
+    """Create dictionary with scores for ASCII by given phred format."""
+    alphabet = None
+
+    if phred == "33": #check for phred format
+        alphabet = {char:value-33 for value,char in enumerate(ascii,33) if value < 74} #make dictionary w ascii-character + phred score
+
+    elif phred == "64":
+        alphabet = {char:value-64 for value,char in enumerate(ascii,33) if value > 63 and value < 105} #make dictionary w ascii-character + phred score
+
+    return alphabet
 
 
 def Phred_Bestimmung(datei, ascii, phred=None):
@@ -54,33 +73,14 @@ def Phred_Bestimmung(datei, ascii, phred=None):
     return phred
 
 
-def alphabet_ascii(phred, ascii):
-    """Create dictionary with scores for ASCII by given phred format."""
-    alphabet = None
+def Qualitaet(content, alphabet, phred):
+    """Create Phred-Score dictionary and translate ASCII-character into score.
+    Append score to value list.
+    """
+    values = []
+    values += [alphabet[str(letter)] for letter in content[3]]
 
-    if phred == "33": #check for phred format
-        alphabet = {char:value-33 for value,char in enumerate(ascii,33) if value < 74} #make dictionary w ascii-character + phred score
-
-    elif phred == "64":
-        alphabet = {char:value-64 for value,char in enumerate(ascii,33) if value > 63 and value < 105} #make dictionary w ascii-character + phred score
-
-    return alphabet
-
-
-def Parser():
-    """Parses command line input when starting script."""
-    input_parser = argparse.ArgumentParser(description="Qualitätsauswertung für FASTA-Dateien")
-    input_parser.add_argument("Dateipfad", help="Dateipfad zur FASTA-Datei")
-    input_parser.add_argument('-p','--phred', dest='phred', default=None, help="Optionale manuelle Angabe des Phred-Formats, 33 oder 64")
-    input_parser.add_argument('-t','--trim', dest='trim_val', help="Optionale manuelle Angabe des Trimming-Scores",default=25)
-    input_parser.add_argument('-c','--cutoff', dest='cutoff', help="Optionale manuelle Angabe des Durchschnittscores, bei dem ein Read komplett verworfen wird.",default=20)
-    input_parser.add_argument('-m','--minl', dest='minlength', help="Optionale manuelle Angabe der minimalen Länge in Basen, die ein getrimmter Read bei der Auswertung haben muss.",default=20)
-    input_parser.add_argument('-tab','--table', dest='save_table', help="Optionale Angabe eines Dateipfades zum Speichern der Datentabelle", default=None)
-    input_parser.add_argument('-plt','--plot', dest='save_plot', help="Optionale Angabe eines Dateipfades zum Speichern der Datenplots", default=None)
-    input_parser.add_argument('-i','--interaktiv', dest='interaktiv', action="store_true", help="Aktivierung des kommentierten interaktiven Modus")
-    arguments = input_parser.parse_args() #Erstellen dictionary, Zugriff auf Argument über Namen
-
-    return arguments
+    return values
 
 
 def trimming(scores,trim_val):
@@ -161,7 +161,6 @@ def graph_basenvert(dict_reads, fig):
     sequences = [item.sequenz for item in dict_reads]
     dataframe = list(zip_longest(*sequences,fillvalue="X"))
 
-
     ax = sns.lineplot(x=[index for index in range(0,max([len(list(dataframe))]))], y=list([i.count("A")/len(''.join(i).replace("X","").strip(", ")) for i in list(dataframe)]))
     ax = sns.lineplot(x=[index for index in range(0,max([len(list(dataframe))]))], y=list([i.count("C")/len(''.join(i).replace("X","").strip(", ")) for i in list(dataframe)]))
     ax = sns.lineplot(x=[index for index in range(0,max([len(list(dataframe))]))], y=list([i.count("G")/len(''.join(i).replace("X","").strip(", ")) for i in list(dataframe)]))
@@ -187,9 +186,9 @@ def main():
     minlength = arguments.minlength
     phred = arguments.phred
     trim_val = arguments.trim_val
-    block = []
 
     with open(arguments.Dateipfad) as inhalt:
+        block = []
         test_cnt = 0	#!! KÜRZEN FÜR TESTLÄUFE
 
         for lines in inhalt:
@@ -210,7 +209,7 @@ def main():
         line_pack.append(lines)
 
         if len(line_pack) == 4:
-            quality = trimming(qualitaet(line_pack, alphabet, phred),trim_val)
+            quality = trimming(Qualitaet(line_pack, alphabet, phred),trim_val)
             if np.mean(quality) > cutoff and len(quality) >= minlength:
                 all_ids.append(Read(line_pack, id, phred, alphabet, quality))
             line_pack = []
@@ -226,7 +225,7 @@ def main():
     # graph_basenvert(all_ids, fig)
 
     #gc_boxplot(all_ids, fig)
-    # 
+    #
     # if arguments.save_plot:
     # 	plt.savefig(str(arguments.save_plot))
     # else:
