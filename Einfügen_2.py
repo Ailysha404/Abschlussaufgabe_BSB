@@ -58,15 +58,12 @@ f.close()
 #         '''qual_plot=sns.distplot(y_mean,kdr=True,bins=50)#bennenung von graphen möglich,
 #         für spätere direktausgabe über main'''
 
-'''pandas.Dataframe-Boxplot'''
+'''pandas.Dataframe-Boxplot'''#graph_gc(dict_reads, fig)
 def gc_boxplot():
-    np.random.seed(1234)
 
-    df = pd.DataFrame(np.random.randn(10, 4),
+    df = pd.DataFrame((),columns=['','',''])
 
-                      columns=['Col1', 'Col2', 'Col3', 'Col4'])
-
-    boxplot = df.boxplot(column=['Col1', 'Col2', 'Col3'])
+    boxplot = df.boxplot(column=['','',''])
 
     plt.show()
 
@@ -82,22 +79,23 @@ def basen_lineplot():
        
        'G':[]
 
-       }, index=[postition],label="Base Quality per Position")
+       }, index=[Postition],label="Base Quality per Position")
 
     lines = df.plot.line()
     plt.show()
 
-'''Countplot'''
+'''Countplot'''#Häufigkeit der Readlängen vorkommen
 df = pd.melt(testdf)
 sns.countplot(data=df.loc[df['value']!="NO"], x='variable', hue='value')
+#->sns.countplot(x=readlänge)
 plt.show()
 
-'''Histogram mit pandas'''
+'''Histogram mit pandas''' #graph_basequality(dict_reads, fig, dataframe)
 plt.hist(df.x, alpha=.3)
 sns.rugplot(df.x);
 plt.show()
 
-'''distplot mit pandas'''
+'''distplot mit pandas'''#raph_scores(dict_reads, fig)
 sns.distplot(df.x)
 plt.show()
 
