@@ -5,6 +5,9 @@ import numpy as np
 from tabulate import tabulate
 import pandas as pd
 import seaborn as sns
+import csv
+from itertools import zip_longest
+import matplotlib.ticker as ticker
 
 
 class Read:
@@ -15,7 +18,6 @@ class Read:
         self.name = content[0].split()[0] #Id from first line as name
         self.quality = quality
         self.sequenz = content[1][0:len(self.quality)] #sequence-string
-
 
 
 def qualitaet(content, alphabet, phred):
@@ -73,7 +75,8 @@ def Parser():
     input_parser.add_argument('-t','--trim', dest='trim_val', help="Optionale manuelle Angabe des Trimming-Scores",default=25)
     input_parser.add_argument('-c','--cutoff', dest='cutoff', help="Optionale manuelle Angabe des Durchschnittscores, bei dem ein Read komplett verworfen wird.",default=20)
     input_parser.add_argument('-m','--minl', dest='minlength', help="Optionale manuelle Angabe der minimalen Länge in Basen, die ein getrimmter Read bei der Auswertung haben muss.",default=20)
-    input_parser.add_argument('-s','--save', dest='save', help="Optionale Angabe eines Dateipfades zum Speichern der Daten")
+    input_parser.add_argument('-tab','--table', dest='save_table', help="Optionale Angabe eines Dateipfades zum Speichern der Datentabelle", default=None)
+    input_parser.add_argument('-plt','--plot', dest='save_plot', help="Optionale Angabe eines Dateipfades zum Speichern der Datenplots", default=None)
     input_parser.add_argument('-i','--interaktiv', dest='interaktiv', action="store_true", help="Aktivierung des kommentierten interaktiven Modus")
     arguments = input_parser.parse_args() #Erstellen dictionary, Zugriff auf Argument über Namen
 
@@ -104,58 +107,77 @@ def trimming(scores,trim_val):
     else:
         return scores
 
+
 def graph_gc(dict_reads, fig):
     """Create subplot for gc-percentages per read."""
-    fig.add_subplot(3, 2, (1, 2))
-    x_values = []
-
-    x_values = [item.gc*100 for item in dict_reads]
-    ax = sns.distplot(x_values,kde=False,color="orange")
+    fig.add_subplot(4, 2, (1, 2))
+    ax = sns.countplot([item.gc*100 for item in dict_reads])
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(100))
+    ax.xaxis.set_major_formatter(ticker.ScalarFormatter())
     ax.set(xlabel="GC content in %",ylabel="Number Reads",title="GC content")
 
     return ax
 
+
+def graph_len_count(dict_reads, fig):
+    fig.add_subplot(4, 2, (3, 4))
+    ax = sns.countplot([item.length for item in dict_reads], palette="pastel")
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(100))
+    ax.xaxis.set_major_formatter(ticker.ScalarFormatter())
+    ax.set(xlabel="Readlength in BP",ylabel="Number Reads",title="Readlengths")
+
+    return ax
+
+
 def graph_scores(dict_reads, fig):
     """Create subplot for mean scores per read."""
-    fig.add_subplot(3, 2, (3, 4))
-    x_values = []
-
-    x_values = [sum(score for score in item.quality)/len(item.quality) for item in dict_reads]
-    ax = sns.distplot(x_values,kde=False,color="orange")
+    fig.add_subplot(4, 2, (5, 6))
+    x_val = [round(sum(score*10 for score in item.quality)/len(item.quality))/10 for item in dict_reads]
+    ax = sns.countplot(x_val)
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(100))
+    ax.xaxis.set_major_formatter(ticker.ScalarFormatter())
     ax.set(xlabel="Quality Score",ylabel="Number Reads",title="Sequence Quality")
 
     return ax
 
-def graph_basequality(dict_reads, fig, dataframe):
+
+def graph_basequality(dict_reads, fig):
     """Shows the Quality of all Read positions"""
-    fig.add_subplot(3, 2, (5, 6))
-    #Ich hasse Seaborn und pandas und matplotlib
+    fig.add_subplot(4, 2, (7, 8))
+    qualscores = [item.quality for item in dict_reads]
+    array_qual = np.array(list(zip_longest(*qualscores,fillvalue=np.nan)), dtype=float)
+    dataframe = pd.DataFrame(array_qual.tolist())
 
-
-    #X=[score_list]#x and y have to be the same lenght
-    #Y=[range(0,len(score_list))]
-    #y_values = [item.info["Qualität"] for item in dict_reads]
-    #x_values = [index for index, item in enumerate(y_values)]
-
-    #ax=sns.catplot("Name", "Länge", col="GC", data=dataframe, kind="point")
-
-    #ax = plt.errorbar(dataframe.index, dataframe["GC"], yerr=20 , data=dataframe)
-    # print(len(range(0,max(dataframe["Länge"])+1)))
-    # print(sum(dataframe["Qualität"][1])/len(dataframe["Qualität"][1]))
-
-
-    #print(len([sum(dataframe["Qualität"][i]) / len(dataframe["Qualität"][i]) for i in range(0,max(dataframe["Länge"])+1)]))
-
-
-    # ax = sns.lineplot(x=range(0,max(dataframe["Länge"])+1), y=[sum(dataframe["Qualität"][i]) / len(dataframe["Qualität"][i]) for i in range(0,max(dataframe["Länge"]+1))], data=dataframe)
-
-
-    # plt.plot(Y,X,alpha=0.7,color="black")
-    # plt.xlabel('Posittion')
-    # plt.ylabel('Quality')
-    # plt.title('Quality Distribution over all Reads')
+    #FERTIG!!SIEEEG!!
+    sterr = np.std(dataframe, axis=1)
+    ax = plt.errorbar(x=dataframe.index, y=[np.mean(dataframe.loc[i]) for i in dataframe.index], yerr=sterr, data=dataframe, ecolor="cyan", capthick="0.7")
 
     return ax
+
+
+def graph_basenvert(dict_reads, fig):
+    """Shows the Quality of all Read positions"""
+    fig.add_subplot(4, 2, (1, 2))
+    sequences = [item.sequenz for item in dict_reads]
+    dataframe = list(zip_longest(*sequences,fillvalue="X"))
+
+
+    ax = sns.lineplot(x=[index for index in range(0,max([len(list(dataframe))]))], y=list([i.count("A")/len(''.join(i).replace("X","").strip(", ")) for i in list(dataframe)]))
+    ax = sns.lineplot(x=[index for index in range(0,max([len(list(dataframe))]))], y=list([i.count("C")/len(''.join(i).replace("X","").strip(", ")) for i in list(dataframe)]))
+    ax = sns.lineplot(x=[index for index in range(0,max([len(list(dataframe))]))], y=list([i.count("G")/len(''.join(i).replace("X","").strip(", ")) for i in list(dataframe)]))
+    ax = sns.lineplot(x=[index for index in range(0,max([len(list(dataframe))]))], y=list([i.count("T")/len(''.join(i).replace("X","").strip(", ")) for i in list(dataframe)]))
+    ax = sns.lineplot(x=[index for index in range(0,max([len(list(dataframe))]))], y=list([i.count("N")/len(''.join(i).replace("X","").strip(", ")) for i in list(dataframe)]))
+
+    return ax
+
+
+def tabelle_speichern(dict_reads, dateipfad="Datentabelle.csv"):
+    # '''Tabelle speichern in csv'''
+    dataframe = pd.DataFrame({"Name":item.name, "Länge":item.length, "GC":item.gc, "Qualität":str(item.quality).strip("[]"), "Sequenz":item.sequenz} for item in dict_reads)
+    dataframe.index = np.arange(1,len(dataframe)+1)
+    f = open("table.csv","w")
+    dataframe.to_csv(path_or_buf=dateipfad,header=dataframe.columns,index_label="Index")
+
 
 def main():
     all_ids = [] #! saved as object code, not as string!
@@ -178,7 +200,7 @@ def main():
             block.append(lines.rstrip())
             test_cnt += 1	#!! KÜRZEN FÜR TESTLÄUFE
 
-            if test_cnt > 500:	#!! KÜRZEN FÜR TESTLÄUFE
+            if test_cnt > 1000:	#!! KÜRZEN FÜR TESTLÄUFE
                 break
 
     alphabet = alphabet_ascii(phred, ascii)
@@ -193,18 +215,24 @@ def main():
                 all_ids.append(Read(line_pack, id, phred, alphabet, quality))
             line_pack = []
 
-    test = ({"Länge":item.length, "GC":item.gc, "Name":item.name, "Qualität":item.quality, "Sequenz":item.sequenz} for item in all_ids)
-    info = pd.DataFrame(test)
-
     #Following code is responsible for creation and saving of graphs
     fig = plt.figure()
     sns.set_style("whitegrid")
-    graph_gc(all_ids, fig)
-    graph_scores(all_ids, fig)
-    graph_basequality(all_ids, fig, info)
-    plt.show()
-    if arguments.save:
-    	plt.savefig(str(arguments.save))
+
+    # graph_gc(all_ids, fig)
+    # graph_scores(all_ids, fig)
+    # graph_len_count(all_ids, fig)
+    # graph_basequality(all_ids, fig)
+    # graph_basenvert(all_ids, fig)
+
+    #gc_boxplot(all_ids, fig)
+    # 
+    # if arguments.save_plot:
+    # 	plt.savefig(str(arguments.save_plot))
+    # else:
+    #     plt.show()
+
+    tabelle_speichern(all_ids, arguments.save_table)
 
 if __name__ == "__main__":
     #start = time.time()
