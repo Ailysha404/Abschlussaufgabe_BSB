@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import time
-from alive_progress import alive_bar, config_handler
+##from alive_progress import alive_bar, config_handler
 from itertools import zip_longest
 from matplotlib.backends.backend_pdf import PdfPages
 
@@ -275,7 +275,7 @@ def graph_basequality(dict_reads, fig):
         y=[np.mean(dataframe.loc[i]) for i in dataframe.index],
         yerr=sterr,
         data=dataframe,
-        ecolor="cyan",
+####        ecolor="cyan", -> hier könntest du die Palette ändern glaube ich !
         capthick="0.5",
         )
 
@@ -325,16 +325,16 @@ def graph_basenvert(dict_reads, fig):
         [axA, axG, axC, axT],
         loc="upper center",
         ncol=4,
-        labels=["A", "G", "C", "T"]
+        labels=["A", "G", "C", "T"] ##-> "N" gelöscht, ncol=4,axN aus liste gelöscht
         )
 
-    axT.set(xlabel="Position in Read (BP)",
+    axT.set(xlabel="Position in Read (BP)", ##-> axN in axT geändert!
         ylabel="Distribution of Bases (%)",
         title="Distribution of Bases at Read Positions")
 
     return fig
 
-def gekürzter_basenvert_graph(dict_reads,fig):
+def gekürzter_basenvert_graph(dict_reads,fig):##### eingefügt! längen noch nicht richtig!
     """Show the Quality of all Read positions"""
     fig.add_subplot(
     9,
@@ -413,13 +413,13 @@ def gekürzter_basenvert_graph(dict_reads,fig):
 
     axT.set(xlabel="Position in Read (BP)",
         ylabel="Distribution of Bases (%)",
-        title="Distribution of Bases at Read Positions")
+        title="Distribution of Bases at Read Positions")##axT anstelle axN.set sonst Fehler!
 
     return fig
     
 
 
-def N_graph(dict_reads, fig):
+def N_graph(dict_reads, fig):##eingefügt! Noch nicht geplottet
     """Show the Quality of all Read positions"""
     fig.add_subplot(
         9,
@@ -441,16 +441,12 @@ def N_graph(dict_reads, fig):
     loc="upper center",
     ncol=1,
     labels=["N"]
-    )
+    )#axN anstelle der liste , label="N" und ncol=1
     axN.set(xlabel="Position in Read (BP)",
         ylabel="Distribution of Bases (%)",
         title="Distribution of Bases at Read Positions")
         
-
     return fig
-# a={10,10,10,10,10,20,20,20,20,20,3,5,6,7,8,121,144,66,99,130}
-# b=[sum([current:current+5])%len(a) for current in range(0,len(a),5)]
-# print(f'{b} und Länge der Liste = {len(a)}')
 
 
 
@@ -527,7 +523,7 @@ def main():
     minlength = arguments.minlength
     phred = arguments.phred
     trim_val = arguments.trim_val
-    config_handler.set_global(spinner="dots_waves")
+    config_handler.set_global(spinner="dots_waves")## eingefügt für den Balken
     
 
     with open(arguments.Dateipfad) as inhalt:
@@ -556,7 +552,7 @@ def main():
     line_pack = []
     read_count = 0
     
-    with alive_bar(bar="squares") as bar:
+    with alive_bar(bar="squares") as bar:## prozessblock
         for lines in block:
             line_pack.append(lines)
 
@@ -583,8 +579,8 @@ def main():
                             )
                         )
                 line_pack = []
-            bar(text="Processing", incr=1)
-        print("Quality control finished")
+            bar(text="Processing", incr=1)##Prozessblock
+        print("Quality control finished")##Prozessblock
     
     #Following code is responsible for creation and saving of graphs
     # fig = plt.figure()
@@ -622,12 +618,12 @@ def main():
             pdf.savefig()
             plt.close()
             
-            fig = plt.figure()
+            fig = plt.figure()## für Plot
             gekürzter_basenvert_graph(all_ids,fig)
             pdf.savefig()
             plt.close()
             
-            fig = plt.figure()
+            fig = plt.figure()## für plot
             N_graph(all_ids, fig)
             pdf.savefig()
             plt.close()
@@ -647,9 +643,9 @@ def main():
         plt.show()
         graph_basequality(all_ids, fig)
         plt.show()
-        gekürzter_basenvert_graph(dict_reads,fig)
+        gekürzter_basenvert_graph(dict_reads,fig)##eingesetzt
         plt.show()
-        N_graph(all_ids, fig)
+        N_graph(all_ids, fig)##eingesetzt
         plt.show()
         graph_basenvert(all_ids, fig)
         plt.show()
@@ -661,16 +657,16 @@ def main():
         graph_scores(all_ids, fig)
         graph_basequality(all_ids, fig)
         graph_basenvert(all_ids, fig)
-        gekürzter_basenvert_graph(dict_reads,fig)
-        N_graph(all_ids, fig)
-        bar(text="Processing", incr=1)
-    print("Creation of graphs finished")
+        gekürzter_basenvert_graph(dict_reads,fig)##eingesetzt
+        N_graph(all_ids, fig)##eingestezt
+        bar(text="Processing", incr=1)##prozessbalken
+    print("Creation of graphs finished")##Prozessbalken
 
 
 
     tabelle_speichern(all_ids, phred, read_count, arguments.save_table) 
              
-    with alive_bar(bar="squares") as bar:
+    with alive_bar(bar="squares") as bar:##Prozessbalkenblock
         '''Creates the loading bar for the tabel saving'''
         tabelle_speichern(dict_reads, phred, read_count, dateipfad="Datentabelle.csv")
         bar(text="Processing", incr=1)
