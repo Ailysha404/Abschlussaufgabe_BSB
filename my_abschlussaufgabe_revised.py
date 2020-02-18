@@ -1,13 +1,12 @@
 import argparse
 import matplotlib.pyplot as plt
-import time
+import matplotlib.ticker as ticker
+import matplotlib.axis as Axis
 import numpy as np
-from tabulate import tabulate
 import pandas as pd
 import seaborn as sns
-import csv
+import time
 from itertools import zip_longest
-import matplotlib.ticker as ticker
 from matplotlib.backends.backend_pdf import PdfPages
 
 
@@ -151,42 +150,90 @@ def trimming(scores, trim_val):
         return scores
 
 
-def graph_gc(dict_reads, fig):
+def graph_gc(dict_reads):
     """Create subplot for gc-percentages per read."""
-    fig.add_subplot(
-        3,
-        3,
-        (1, 3)
-        )
-    ax = sns.countplot([round(item.gc,2)*100 for item in dict_reads])
-    ax.xaxis.set_major_locator(ticker.MultipleLocator(100))
-    ax.xaxis.set_major_formatter(ticker.ScalarFormatter())
-    ax.set(
+    # fig.add_subplot(
+    #     3,
+    #     3,
+    #     (1, 3)
+    #     )
+
+    fig = sns.countplot([round(item.gc,2)*100 for item in dict_reads])
+    fig.set(
         xlabel="GC content in %",
         ylabel="Number of Reads",
         title="GC content"
         )
+    n = 5
 
-    return ax
+    [label.set_visible(False) for label in fig.get_xticklabels() if float(label.get_text()) % n != 0]
+
+    return fig
 
 
 def graph_len_count(dict_reads, fig):
     """Create graph showing read length distribution over the reads."""
-    fig.add_subplot(
-        3,
-        3,
-        (7, 9)
-        )
+    # fig.add_subplot(
+    #     3,
+    #     3,
+    #     (1, 3)
+    #     )
+    maxLen = max([item.length for item in dict_reads])
+    n = 50
+    range_test = [label for label in range(0,maxLen,1) if label & n == 0]
+    label_list=[str(label) for label in range(0,maxLen,1) if label % n == 0]
+    #plt.xticks(range_test, label_list)
+    sns.set_style({"xtick_bottom":False})
     ax = sns.countplot([item.length for item in dict_reads])
-    ax.xaxis.set_major_locator(ticker.MultipleLocator(100))
-    ax.xaxis.set_major_formatter(ticker.ScalarFormatter())
+
+    # plt.xticks(np.arange(0,maxLen,n))
+
+    # ax.set_xticks(range_test)
+    # ax.set_xticklabels(labels)
+
+    ax.xaxis.set_major_locator(plt.MaxNLocator(10))
+    # ax.axis.set_xlim(0, maxLen)
+    # ax.set(
+    #     # xticks=range_test,
+    #     # xticklabels=label_list,
+    #     xlim=(0, maxLen),
+    #     #major_locator=ticker.MaxNLocator(10)
+    #     )
+    # ticker.ax.IndexLocator(range_test,offset=50)
+
+    #ax.xaxis.set_major_locator(plt.MaxNLocator(3))
+    # ax.xaxis.set_major_locator(locator=ticker.MaxNLocator(10))
+    # ax.set_xticks(range_test)
+    # ax.set_xticklabels(label_list)
+    #ax = sns.countplot([item.length for item in dict_reads])
+
     ax.set(
-        xlabel="Readlength in BP",
-        ylabel="Number of Reads",
-        title="Readlengths"
+        xlim=(0, maxLen)
+        plt.xlabel("Readlength in BP"),
+        plt.ylabel("Number of Reads"),
+        plt.title("Readlengths"),
+
+
         )
 
-    return ax
+
+
+
+
+    #ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%d"))
+    # print([label.get_text() for label in ax.xaxis.get_ticklabels()])
+    # print([label for label in ax.get_xticklabels()])
+    #[label.set_visible(False) for label in ax.get_xticklabels() if int(label.get_text()) % n != 0]
+
+    # ax.xaxis.set_major_locator(ticker.IndexLocator(base=range_test, offset=50))
+    # ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%d"))
+    # rang = list(range(0, max([item.length for item in dict_reads]), 10))
+    # test = [label.get_text() for label in ax.xaxis.get_ticklabels()]
+    # n = 50
+    # print([item for item in rang if item % n == 0])
+    # print([label.get_text() for label in ax.xaxis.get_ticklabels()])
+
+    return fig
 
 
 def graph_scores(dict_reads, fig):
@@ -198,31 +245,31 @@ def graph_scores(dict_reads, fig):
         )
     x_val = [round(sum(score*10 for score in item.quality)/len(item.quality))/10 for item in dict_reads]
     ax = sns.countplot(x_val)
-    ax.xaxis.set_major_locator(ticker.MultipleLocator(100))
-    ax.xaxis.set_major_formatter(ticker.ScalarFormatter())
     ax.set(
         xlabel="Quality Score",
         ylabel="Number of Reads",
         title="Sequence Quality"
         )
+    n = 1
+    [label.set_visible(False) for label in ax.xaxis.get_ticklabels() if float(label.get_text()) % n != 0]
 
     return ax
 
 
 def graph_basequality(dict_reads, fig):
     """Show the quality of all Read positions"""
-    fig.add_subplot(
-        3,
-        2,
-        (1, 6)
-        )
+    # fig.add_subplot(
+    #     3,
+    #     2,
+    #     (1, 6)
+    #     )
     qualscores = [item.quality for item in dict_reads]
     array_qual = np.array(list(zip_longest(*qualscores,fillvalue=np.nan)), dtype=float)
     dataframe = pd.DataFrame(array_qual.tolist())
 
     #FERTIG!!SIEEEG!!
     sterr = np.std(dataframe, axis=1)
-    ax = plt.errorbar(
+    fig = plt.errorbar(
         x=dataframe.index,
         y=[np.mean(dataframe.loc[i]) for i in dataframe.index],
         yerr=sterr,
@@ -231,11 +278,11 @@ def graph_basequality(dict_reads, fig):
         capthick="0.5",
         )
 
-    plt.xlabel("Position in read (bp)")
-    plt.ylabel("Quality")
-    plt.title("Average Quality at Read Positions")
+    plt.xlabel="Position in read (bp)"
+    plt.ylabel="Quality"
+    plt.title="Average Quality at Read Positions"
 
-    return ax
+    return fig
 
 
 def graph_basenvert(dict_reads, fig):
@@ -281,9 +328,9 @@ def graph_basenvert(dict_reads, fig):
 
     fig.legend(
     [axA, axG, axC, axT, axN],
-    labels=["A", "G", "C", "T", "N"],
     loc="upper center",
-    ncol=5
+    ncol=5,
+    labels=["A", "G", "C", "T", "N"]
     )
 
     axN.set(
@@ -426,12 +473,6 @@ def main():
     # fig = plt.figure()
     # sns.set_style("whitegrid")
 
-    # graph_gc(all_ids, fig)
-    # graph_scores(all_ids, fig)
-    # graph_len_count(all_ids, fig)
-    # graph_basequality(all_ids, fig)
-    # graph_basenvert(all_ids, fig)
-
     #gc_boxplot(all_ids, fig) #not working yet
 
     # if arguments.save_plot:
@@ -442,8 +483,14 @@ def main():
     	with PdfPages(str(arguments.save_plot)) as pdf:
             #Multipage-pdf with all plots
             #First page gc
+            sns.set_style("whitegrid", {"xtick.bottom":"True"})
+
+            plt.figure()
+            graph_gc(all_ids)
+            pdf.savefig()
+            plt.close()
+
             fig = plt.figure()
-            graph_gc(all_ids, fig)
             graph_len_count(all_ids, fig)
             pdf.savefig()
             plt.close()
@@ -462,8 +509,18 @@ def main():
             graph_basenvert(all_ids, fig)
             pdf.savefig()
             plt.close()
-            pass
+
     else:
+        fig = plt.figure()
+        graph_gc(all_ids)
+        plt.show()
+        graph_len_count(all_ids, fig)
+        plt.show()
+        graph_scores(all_ids, fig)
+        plt.show()
+        graph_basequality(all_ids, fig)
+        plt.show()
+        graph_basenvert(all_ids, fig)
         plt.show()
 
     tabelle_speichern(all_ids, phred, read_count, arguments.save_table)
