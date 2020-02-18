@@ -1,13 +1,13 @@
 import argparse
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
-import matplotlib.axis as Axis
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import time
 from itertools import zip_longest
 from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.gridspec import GridSpec
 
 
 class Read:
@@ -150,201 +150,186 @@ def trimming(scores, trim_val):
         return scores
 
 
-def graph_gc(dict_reads):
+def graph_gc(dict_reads, fig):
     """Create subplot for gc-percentages per read."""
-    # fig.add_subplot(
-    #     3,
-    #     3,
-    #     (1, 3)
-    #     )
+    # gs = GridSpec(1, 4, figure = fig)
+    # pdata = pd.DataFrame(data=pd.Index([int(round(item.gc,2)*100) for item in dict_reads]).value_counts())
+    #
+    # ax = fig.add_subplot(gs[0,:], label="Readlength in BP")
+    # sns.lineplot(data=pdata, legend=None, palette=["teal"])
 
-    fig = sns.countplot([round(item.gc,2)*100 for item in dict_reads])
-    fig.set(
-        xlabel="GC content in %",
+    ax = fig.subplots(1, 1)
+    fig.subplots_adjust(hspace=0.5)
+    ax.set(
+        title="GC Content",
+        xlabel="GC Content in %",
         ylabel="Number of Reads",
-        title="GC content"
         )
-    n = 5
-
-    [label.set_visible(False) for label in fig.get_xticklabels() if float(label.get_text()) % n != 0]
+    sns.distplot(
+        [int(round(item.gc,2)*100) for item in dict_reads],
+        bins=20,
+        kde=False,
+        ax=ax,
+        color="teal",
+        )
 
     return fig
 
 
 def graph_len_count(dict_reads, fig):
     """Create graph showing read length distribution over the reads."""
-    # fig.add_subplot(
-    #     3,
-    #     3,
-    #     (1, 3)
-    #     )
     maxLen = max([item.length for item in dict_reads])
-    n = 50
-    range_test = [label for label in range(0,maxLen,1) if label & n == 0]
-    label_list=[str(label) for label in range(0,maxLen,1) if label % n == 0]
-    #plt.xticks(range_test, label_list)
-    sns.set_style({"xtick_bottom":False})
-    ax = sns.countplot([item.length for item in dict_reads])
+    # gs = GridSpec(2, 2, figure = fig, wspace=.5, hspace=.5)
+    # pdata = pd.DataFrame(data=pd.Index([item.length for item in dict_reads]).value_counts()).sort_index().sub(1,axis=1)
 
-    # plt.xticks(np.arange(0,maxLen,n))
+    ax1, ax2 = fig.subplots(2, 1, sharex=True, sharey=True)
+    fig.subplots_adjust(hspace=0.2)
 
-    # ax.set_xticks(range_test)
-    # ax.set_xticklabels(labels)
-
-    ax.xaxis.set_major_locator(plt.MaxNLocator(10))
-    # ax.axis.set_xlim(0, maxLen)
-    # ax.set(
-    #     # xticks=range_test,
-    #     # xticklabels=label_list,
-    #     xlim=(0, maxLen),
-    #     #major_locator=ticker.MaxNLocator(10)
-    #     )
-    # ticker.ax.IndexLocator(range_test,offset=50)
-
-    #ax.xaxis.set_major_locator(plt.MaxNLocator(3))
-    # ax.xaxis.set_major_locator(locator=ticker.MaxNLocator(10))
-    # ax.set_xticks(range_test)
-    # ax.set_xticklabels(label_list)
-    #ax = sns.countplot([item.length for item in dict_reads])
-
-    ax.set(
-        xlim=(0, maxLen)
-        plt.xlabel("Readlength in BP"),
-        plt.ylabel("Number of Reads"),
-        plt.title("Readlengths"),
-
-
+    ax1.set(
+        title="Readlengths before Trimming",
+        ylabel="Number of Reads",
+        )
+    ax1.set_xlim(0, maxLen)
+    sns.distplot(
+        [item.length for item in dict_reads],
+        bins=40,
+        kde=False,
+        ax=ax1,
+        color="teal",
         )
 
+    ax2.set(
+        xlabel="Readlength in BP",
+        ylabel="Number of Reads",
+        )
 
+    sns.distplot(
+        [item.trimmed_length for item in dict_reads],
+        bins=40,
+        kde=False,
+        ax=ax2,
+        color="teal",
+        )
 
+    #sns.lineplot(data=pdata, legend=None, palette=["teal"])
 
-
-    #ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%d"))
-    # print([label.get_text() for label in ax.xaxis.get_ticklabels()])
-    # print([label for label in ax.get_xticklabels()])
-    #[label.set_visible(False) for label in ax.get_xticklabels() if int(label.get_text()) % n != 0]
-
-    # ax.xaxis.set_major_locator(ticker.IndexLocator(base=range_test, offset=50))
-    # ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%d"))
-    # rang = list(range(0, max([item.length for item in dict_reads]), 10))
-    # test = [label.get_text() for label in ax.xaxis.get_ticklabels()]
-    # n = 50
-    # print([item for item in rang if item % n == 0])
-    # print([label.get_text() for label in ax.xaxis.get_ticklabels()])
 
     return fig
 
 
 def graph_scores(dict_reads, fig):
     """Create subplot for mean scores per read."""
-    fig.add_subplot(
-        2,
-        4,
-        (1, 8)
+    # gs = GridSpec(1, 4, figure = fig)
+    # ax = fig.add_subplot(gs[0,:])
+    # x_val = [round(sum(score*10 for score in item.quality)/len(item.quality))/10 for item in dict_reads]
+    #
+    # ax = sns.countplot(x_val, palette="viridis_r",)
+    # ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=10))
+    # plt.xlabel("Quality Score")
+    # plt.ylabel("Number of Reads")
+    # plt.title("Sequence Quality")
+
+    ax1, ax2 = fig.subplots(2, 1, sharex=True, sharey=True)
+    fig.subplots_adjust(hspace=0.2)
+
+    ax1.set(
+        title="Average Sequence Quality",
+        ylabel="Number of Reads",
         )
-    x_val = [round(sum(score*10 for score in item.quality)/len(item.quality))/10 for item in dict_reads]
-    ax = sns.countplot(x_val)
-    ax.set(
+    sns.distplot(
+    [item.mean_qual_untrimmed for item in dict_reads],
+        bins=40,
+        kde=False,
+        ax=ax1,
+        color="teal",
+        )
+
+    ax2.set(
         xlabel="Quality Score",
         ylabel="Number of Reads",
-        title="Sequence Quality"
         )
-    n = 1
-    [label.set_visible(False) for label in ax.xaxis.get_ticklabels() if float(label.get_text()) % n != 0]
+    sns.distplot(
+    [item.mean_qual_trimmed for item in dict_reads],
+        bins=40,
+        kde=False,
+        ax=ax2,
+        color="teal",
+        )
 
-    return ax
+    return fig
 
 
 def graph_basequality(dict_reads, fig):
     """Show the quality of all Read positions"""
-    # fig.add_subplot(
-    #     3,
-    #     2,
-    #     (1, 6)
-    #     )
+    # gs = GridSpec(1, 4, figure = fig)
+    # fig.add_subplot(gs[0,:])
     qualscores = [item.quality for item in dict_reads]
     array_qual = np.array(list(zip_longest(*qualscores,fillvalue=np.nan)), dtype=float)
     dataframe = pd.DataFrame(array_qual.tolist())
-
-    #FERTIG!!SIEEEG!!
     sterr = np.std(dataframe, axis=1)
-    fig = plt.errorbar(
+    ax = fig.subplots(1, 1, sharex=True, sharey=True)
+    ax.set(
+        title="Average Quality at Read Positions",
+        xlabel="Position in Read (BP)",
+        ylabel="Quality",
+        )
+    plt.errorbar(
         x=dataframe.index,
         y=[np.mean(dataframe.loc[i]) for i in dataframe.index],
         yerr=sterr,
         data=dataframe,
-        ecolor="cyan",
+        color="#008080",
+        lw=0.8,
+        ecolor="lightblue",
         capthick="0.5",
         )
-
-    plt.xlabel="Position in read (bp)"
-    plt.ylabel="Quality"
-    plt.title="Average Quality at Read Positions"
 
     return fig
 
 
 def graph_basenvert(dict_reads, fig):
-    """Show the Quality of all Read positions"""
-    fig.add_subplot(
-        9,
-        1,
-        (1, 9)
-        )
+    """Show the distribution of all bases"""
+    # gs = GridSpec(1, 4, figure = fig)
+    sns.set_style({"palette":"Dark2"})
+    # fig.add_subplot(gs[0,:])
     sequences = [item.sequenz for item in dict_reads]
     dataframe = list(zip_longest(*sequences,fillvalue="X"))
+    x_values = [index for index in range(0,max([len(list(dataframe))]))]
+    bases = ["A", "C", "G", "T"]
 
-    axA = sns.lineplot(
-        x=[index for index in range(0,max([len(list(dataframe))]))],
-        y=list([i.count("A")/len("".join(i).replace("X","").strip(", ")) for i in list(dataframe)]),
-        alpha=0.7,
-        lw=0.5
-        )
-    axC = sns.lineplot(
-        x=[index for index in range(0,max([len(list(dataframe))]))],
-        y=list([i.count("C")/len("".join(i).replace("X","").strip(", ")) for i in list(dataframe)]),
-        alpha=0.7,
-        lw=0.5
-        )
-    axG = sns.lineplot(
-        x=[index for index in range(0,max([len(list(dataframe))]))],
-        y=list([i.count("G")/len("".join(i).replace("X","").strip(", ")) for i in list(dataframe)]),
-        alpha=0.7,
-        lw=0.5
-        )
-    axT = sns.lineplot(
-        x=[index for index in range(0,max([len(list(dataframe))]))],
-        y=list([i.count("T")/len("".join(i).replace("X","").strip(", ")) for i in list(dataframe)]),
-        alpha=0.7,
-        lw=0.5
-        )
-    axN = sns.lineplot(
-        x=[index for index in range(0,max([len(list(dataframe))]))],
-        y=list([i.count("N")/len("".join(i).replace("X","").strip(", ")) for i in list(dataframe)]),
-        alpha=0.7,
-        lw=0.5
-        )
-
-    fig.legend(
-    [axA, axG, axC, axT, axN],
-    loc="upper center",
-    ncol=5,
-    labels=["A", "G", "C", "T", "N"]
-    )
-
-    axN.set(
+    ax = fig.subplots(1, 1, sharex=True, sharey=True)
+    ax.set(
+        title="Distribution of Bases at Read Positions",
         xlabel="Position in Read (BP)",
         ylabel="Distribution of Bases (%)",
-        title="Distribution of Bases at Read Positions"
         )
+
+    for letter in bases:
+        letter = sns.lineplot(
+            x=x_values,
+            y=list([i.count(letter)/len("".join(i).replace("X","").strip(", "))*100 for i in list(dataframe)]),
+            lw=0.5,
+            )
+
+    fig.legend(
+    bases,
+    loc="upper center",
+    ncol=4,
+    fancybox=True,
+    framealpha=1,
+    edgecolor="#000000",
+    facecolor="#FFFFFF",
+    )
+    # plt.xlabel("Position in Read (BP)")
+    # plt.ylabel("Distribution of Bases (%)")
+    # plt.title("Distribution of Bases at Read Positions")
 
     return fig
 
 
 def tabelle_speichern(dict_reads, phred, read_count, dateipfad="Datentabelle.csv"):
     """Save data stats/attributes as csv table for later review"""
-    info = {
+    dataframe_overview = pd.DataFrame({
         "Anzahl Reads":[
             read_count,
             "",
@@ -371,9 +356,7 @@ def tabelle_speichern(dict_reads, phred, read_count, dateipfad="Datentabelle.csv
             np.std([item.gc*100 for item in dict_reads])
             ],
         "":""
-        }
-
-    dataframe_overview = pd.DataFrame(data=info)
+        })
     dataframe_overview.index = np.arange(1,len(dataframe_overview)+1)
     with open(dateipfad, "w"):
         dataframe_overview.transpose().to_csv(
@@ -395,7 +378,6 @@ def tabelle_speichern(dict_reads, phred, read_count, dateipfad="Datentabelle.csv
         "Qualität":str(item.quality).strip("[]"),
         "Sequenz":item.sequenz
         } for item in dict_reads)
-
     dataframe_detail.index = np.arange(1,len(dataframe_detail)+1)
     with open(dateipfad, "a"):
             dataframe_detail.to_csv(
@@ -470,28 +452,26 @@ def main():
             line_pack = []
 
     #Following code is responsible for creation and saving of graphs
-    # fig = plt.figure()
-    # sns.set_style("whitegrid")
-
-    #gc_boxplot(all_ids, fig) #not working yet
-
-    # if arguments.save_plot:
-    # 	plt.savefig(str(arguments.save_plot))
-    # else:
-    #     plt.show()
     if arguments.save_plot:
     	with PdfPages(str(arguments.save_plot)) as pdf:
             #Multipage-pdf with all plots
-            #First page gc
-            sns.set_style("whitegrid", {"xtick.bottom":"True"})
+            sns.set_style("whitegrid", {
+                "grid_linestyle":"+",
+                "grid.color":"#99ACAC",
+                "xtick.bottom":True,
+                "ytick.left":True,
+                "ytick.direction":"in",
+                "axes.edgecolor":"#004A56",
+                "axes.facecolor":"F9FEFE",
+                })
 
-            plt.figure()
-            graph_gc(all_ids)
+            fig = plt.figure()
+            graph_gc(all_ids, fig)
             pdf.savefig()
             plt.close()
 
             fig = plt.figure()
-            graph_len_count(all_ids, fig)
+            fig = graph_len_count(all_ids, fig)
             pdf.savefig()
             plt.close()
 
@@ -512,7 +492,7 @@ def main():
 
     else:
         fig = plt.figure()
-        graph_gc(all_ids)
+        graph_gc(all_ids, fig)
         plt.show()
         graph_len_count(all_ids, fig)
         plt.show()
