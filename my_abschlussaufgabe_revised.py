@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import time
-from itertools import zip_longest
+from itertools import zip_longest, chain
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.gridspec import GridSpec
 
@@ -59,7 +59,7 @@ def parser():
         "-tab", "--table",
         dest="save_table",
         help="Optionale Angabe eines Dateipfades zum Speichern der Datentabelle",
-        default=None
+        default="Datentabelle.csv"
         )
     input_parser.add_argument(
         "-plt", "--plot",
@@ -150,14 +150,9 @@ def trimming(scores, trim_val):
         return scores
 
 
-def graph_gc(dict_reads, fig):
+def graph_gc(dict_reads): #opimize
     """Create subplot for gc-percentages per read."""
-    # gs = GridSpec(1, 4, figure = fig)
-    # pdata = pd.DataFrame(data=pd.Index([int(round(item.gc,2)*100) for item in dict_reads]).value_counts())
-    #
-    # ax = fig.add_subplot(gs[0,:], label="Readlength in BP")
-    # sns.lineplot(data=pdata, legend=None, palette=["teal"])
-
+    fig = plt.figure()
     ax = fig.subplots(1, 1)
     fig.subplots_adjust(hspace=0.5)
     ax.set(
@@ -171,23 +166,23 @@ def graph_gc(dict_reads, fig):
         kde=False,
         ax=ax,
         color="teal",
+        hist_kws=({"alpha":1}),
         )
 
     return fig
 
 
-def graph_len_count(dict_reads, fig):
+def graph_len_count(dict_reads):
     """Create graph showing read length distribution over the reads."""
     maxLen = max([item.length for item in dict_reads])
-    # gs = GridSpec(2, 2, figure = fig, wspace=.5, hspace=.5)
-    # pdata = pd.DataFrame(data=pd.Index([item.length for item in dict_reads]).value_counts()).sort_index().sub(1,axis=1)
 
+    fig = plt.figure()
     ax1, ax2 = fig.subplots(2, 1, sharex=True, sharey=True)
     fig.subplots_adjust(hspace=0.2)
-
     ax1.set(
         title="Readlengths before Trimming",
         ylabel="Number of Reads",
+        xlim=(0, maxLen)
         )
     ax1.set_xlim(0, maxLen)
     sns.distplot(
@@ -196,45 +191,36 @@ def graph_len_count(dict_reads, fig):
         kde=False,
         ax=ax1,
         color="teal",
+        hist_kws=({"alpha":1}),
         )
 
     ax2.set(
+    title="Readlengths after Trimming",
         xlabel="Readlength in BP",
         ylabel="Number of Reads",
         )
-
     sns.distplot(
         [item.trimmed_length for item in dict_reads],
         bins=40,
         kde=False,
         ax=ax2,
         color="teal",
+        hist_kws=({"alpha":1}),
         )
-
-    #sns.lineplot(data=pdata, legend=None, palette=["teal"])
-
 
     return fig
 
 
-def graph_scores(dict_reads, fig):
+def graph_scores(dict_reads):
     """Create subplot for mean scores per read."""
-    # gs = GridSpec(1, 4, figure = fig)
-    # ax = fig.add_subplot(gs[0,:])
-    # x_val = [round(sum(score*10 for score in item.quality)/len(item.quality))/10 for item in dict_reads]
-    #
-    # ax = sns.countplot(x_val, palette="viridis_r",)
-    # ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=10))
-    # plt.xlabel("Quality Score")
-    # plt.ylabel("Number of Reads")
-    # plt.title("Sequence Quality")
-
+    fig = plt.figure()
     ax1, ax2 = fig.subplots(2, 1, sharex=True, sharey=True)
     fig.subplots_adjust(hspace=0.2)
 
     ax1.set(
-        title="Average Sequence Quality",
+        title="Average Sequence Quality before Trimming",
         ylabel="Number of Reads",
+        xlim=(0,40),
         )
     sns.distplot(
     [item.mean_qual_untrimmed for item in dict_reads],
@@ -242,9 +228,11 @@ def graph_scores(dict_reads, fig):
         kde=False,
         ax=ax1,
         color="teal",
+        hist_kws=({"alpha":1})
         )
 
     ax2.set(
+        title="Average Sequence Quality after Trimming",
         xlabel="Quality Score",
         ylabel="Number of Reads",
         )
@@ -254,30 +242,35 @@ def graph_scores(dict_reads, fig):
         kde=False,
         ax=ax2,
         color="teal",
+        hist_kws=({"alpha":1})
         )
 
     return fig
 
 
-def graph_basequality(dict_reads, fig):
+def graph_basequality(dict_reads):
     """Show the quality of all Read positions"""
-    # gs = GridSpec(1, 4, figure = fig)
-    # fig.add_subplot(gs[0,:])
     qualscores = [item.quality for item in dict_reads]
     array_qual = np.array(list(zip_longest(*qualscores,fillvalue=np.nan)), dtype=float)
-    dataframe = pd.DataFrame(array_qual.tolist())
-    sterr = np.std(dataframe, axis=1)
+    sterr=[]
+    y_values=[]
+    for item in array_qual:
+        sterr.append(np.nanstd(item))
+        y_values.append(np.nanmean(item))
+    fig = plt.figure()
     ax = fig.subplots(1, 1, sharex=True, sharey=True)
     ax.set(
         title="Average Quality at Read Positions",
         xlabel="Position in Read (BP)",
         ylabel="Quality",
+        ylim=(0, max(y_values)+max(sterr)),
+        xlim=(0, len(y_values)),
         )
     plt.errorbar(
-        x=dataframe.index,
-        y=[np.mean(dataframe.loc[i]) for i in dataframe.index],
+        x=range(0,len(y_values)),
+        y=y_values,
         yerr=sterr,
-        data=dataframe,
+        data=array_qual,
         color="#008080",
         lw=0.8,
         ecolor="lightblue",
@@ -287,48 +280,106 @@ def graph_basequality(dict_reads, fig):
     return fig
 
 
-def graph_basenvert(dict_reads, fig):
+def graph_basenvert(dict_reads):
     """Show the distribution of all bases"""
-    # gs = GridSpec(1, 4, figure = fig)
-    sns.set_style({"palette":"Dark2"})
-    # fig.add_subplot(gs[0,:])
-    sequences = [item.sequenz for item in dict_reads]
-    dataframe = list(zip_longest(*sequences,fillvalue="X"))
-    x_values = [index for index in range(0,max([len(list(dataframe))]))]
-    bases = ["A", "C", "G", "T"]
+    sequences = [list(item.sequenz) for item in dict_reads]
+    datalist = list(zip_longest(*sequences, fillvalue=""))
+    bases = ["A", "C", "G", "T", "N"]
+    colors=["red", "green", "blue", "deeppink", "purple"]
+    counter = 0
 
-    ax = fig.subplots(1, 1, sharex=True, sharey=True)
-    ax.set(
-        title="Distribution of Bases at Read Positions",
-        xlabel="Position in Read (BP)",
-        ylabel="Distribution of Bases (%)",
+    fig = plt.figure()
+    ax = fig.subplots(1,1)
+    for letter in bases:
+        mean=[i.count(letter)/len("".join(i))*100 for i in datalist]
+        y_values=[np.nanmean(pack) for pack in [mean[teil:teil+5] for teil in range(0, len(mean), 5)]]
+        sns.lineplot(
+                x=[index*5 for index in range(0,max([len(y_values)]))],
+                y=y_values,
+                lw=0.7,
+                color=colors[counter],
+                )
+        counter += 1
+
+    plt.title(f"Average Percentage of Bases at Read Positions")
+    plt.xlabel("Position in Read (BP)")
+    plt.ylabel(f"Share of Bases over all Reads (%)")
+    plt.xlim(0,max(len(item) for item in sequences))
+    plt.ylim(0,100)
+    fig.legend(
+        bases,
+        loc="upper center",
+        ncol=5,
+        fancybox=True,
+        framealpha=1,
+        edgecolor="#000000",
+        facecolor="#FFFFFF",
         )
+    return fig
+
+
+def graph_basenvert_abr(dict_reads):
+    """Show the distribution of all bases"""
+    fig = plt.figure()
+    fig = plt.figure()
+    fig.subplots_adjust(hspace=0.5, wspace=0.3)
+    gs = GridSpec(2, 2)
+    sequences = [list(item.sequenz) for item in dict_reads]
+    datalist = list(zip_longest(*sequences, fillvalue=""))
+    bases = ["A", "C", "G", "T"]
+    colors=["red", "green", "blue", "deeppink"]
+    counter = 0
 
     for letter in bases:
-        letter = sns.lineplot(
-            x=x_values,
-            y=list([i.count(letter)/len("".join(i).replace("X","").strip(", "))*100 for i in list(dataframe)]),
-            lw=0.5,
-            )
+        mean=[i.count(letter)/len("".join(i))*100 for i in datalist]
+        y_values=[np.nanmean(pack) for pack in [mean[teil:teil+5] for teil in range(0, len(mean), 5)]]
+        ax = fig.add_subplot(list(gs)[counter])
+        sns.lineplot(
+                x=[index*5 for index in range(0,max([len(y_values)]))],
+                y=y_values,
+                lw=0.7,
+                color=colors[counter],
+                )
 
-    fig.legend(
-    bases,
-    loc="upper center",
-    ncol=4,
-    fancybox=True,
-    framealpha=1,
-    edgecolor="#000000",
-    facecolor="#FFFFFF",
-    )
-    # plt.xlabel("Position in Read (BP)")
-    # plt.ylabel("Distribution of Bases (%)")
-    # plt.title("Distribution of Bases at Read Positions")
+        plt.title(f"Distribution of {letter}", fontdict={"size":10})
+        plt.xlabel("Position in Read (BP)",fontdict={"size":8})
+        plt.ylabel(f"Share of {letter} (%)",fontdict={"size":8})
+        counter += 1
+    plt.suptitle(f"Average Percentage of Bases at Read Positions")
 
     return fig
 
 
+def graph_nshare(dict_reads):
+    sequences = [list(item.sequenz) for item in dict_reads]
+    datalist = list(zip_longest(*sequences, fillvalue=""))
+    mean=[i.count("N")/len("".join(i))*100 for i in datalist]
+    fig = plt.figure()
+    ax = fig.subplots(1,1)
+    y_values=[np.nanmean(pack) for pack in [mean[teil:teil+3] for teil in range(0, len(mean), 3)]]
+    sns.lineplot(
+            x=[index*5 for index in range(0,max([len(y_values)]))],
+            y=y_values,
+            lw=0.7,
+            color="purple",
+            )
+    plt.title(f"Average Percentage of N at Read Positions")
+    plt.xlabel("Position in Read (BP)")
+    plt.ylabel(f"Share of N over all Reads (%)")
+
+    return fig
+
 def tabelle_speichern(dict_reads, phred, read_count, dateipfad="Datentabelle.csv"):
     """Save data stats/attributes as csv table for later review"""
+    orig_length, trim_length, orig_mean_qual, trim_mean_qual, gc_con = [[],[],[],[],[]]
+
+    for item in dict_reads:
+        orig_length.append(item.length)
+        trim_length.append(item.trimmed_length)
+        orig_mean_qual.append(item.mean_qual_untrimmed)
+        trim_mean_qual.append(item.mean_qual_trimmed)
+        gc_con.append(item.gc*100)
+
     dataframe_overview = pd.DataFrame({
         "Anzahl Reads":[
             read_count,
@@ -338,25 +389,26 @@ def tabelle_speichern(dict_reads, phred, read_count, dateipfad="Datentabelle.csv
             ],
         "Phred-Score Sytem":phred,
         "Durchschn. Länge":[
-            np.mean([item.length for item in dict_reads]),
-            np.std([item.length for item in dict_reads]),
-            np.mean([item.trimmed_length for item in dict_reads]),
-            np.std([item.trimmed_length for item in dict_reads])
+            np.mean(orig_length),
+            np.std(orig_length),
+            np.mean(trim_length),
+            np.std(trim_length),
             ],
         "Durchschn. Qualität":[
-            np.mean([item.mean_qual_untrimmed for item in dict_reads]),
-            np.std([item.mean_qual_untrimmed for item in dict_reads]),
-            np.mean([item.mean_qual_trimmed for item in dict_reads]),
-            np.std([item.mean_qual_trimmed for item in dict_reads])
+            np.mean(orig_mean_qual),
+            np.std(orig_mean_qual),
+            np.mean(trim_mean_qual),
+            np.std(trim_mean_qual),
             ],
         "Durchschn. GC-Gehalt %":[
             "",
             "",
-            np.mean([item.gc*100 for item in dict_reads]),
-            np.std([item.gc*100 for item in dict_reads])
+            np.mean(gc_con),
+            np.std(gc_con),
             ],
         "":""
         })
+
     dataframe_overview.index = np.arange(1,len(dataframe_overview)+1)
     with open(dateipfad, "w"):
         dataframe_overview.transpose().to_csv(
@@ -379,6 +431,7 @@ def tabelle_speichern(dict_reads, phred, read_count, dateipfad="Datentabelle.csv
         "Sequenz":item.sequenz
         } for item in dict_reads)
     dataframe_detail.index = np.arange(1,len(dataframe_detail)+1)
+
     with open(dateipfad, "a"):
             dataframe_detail.to_csv(
                 path_or_buf=dateipfad,
@@ -414,7 +467,7 @@ def main():
             block.append(lines.rstrip())
             test_cnt += 1	#!! KÜRZEN FÜR TESTLÄUFE
 
-            if test_cnt > 1000:	#!! KÜRZEN FÜR TESTLÄUFE
+            if test_cnt > 100000:	#!! KÜRZEN FÜR TESTLÄUFE
                 break
 
     alphabet = alphabet_ascii(
@@ -450,10 +503,12 @@ def main():
                         )
                     )
             line_pack = []
+    print("Reads komplett fertig")
 
     #Following code is responsible for creation and saving of graphs
-    if arguments.save_plot:
-    	with PdfPages(str(arguments.save_plot)) as pdf:
+    print("Start plots")
+    if arguments.save_table:
+        with PdfPages(str(arguments.save_plot)) as pdf:
             #Multipage-pdf with all plots
             sns.set_style("whitegrid", {
                 "grid_linestyle":"+",
@@ -464,31 +519,44 @@ def main():
                 "axes.edgecolor":"#004A56",
                 "axes.facecolor":"F9FEFE",
                 })
-
-            fig = plt.figure()
-            graph_gc(all_ids, fig)
+            start=time.time()
+            #fig = plt.figure()
+            graph_gc(all_ids)
             pdf.savefig()
             plt.close()
 
-            fig = plt.figure()
-            fig = graph_len_count(all_ids, fig)
+            #fig = plt.figure()
+            fig = graph_len_count(all_ids)
             pdf.savefig()
             plt.close()
 
-            fig = plt.figure()
-            graph_scores(all_ids, fig)
+            #fig = plt.figure()
+            graph_scores(all_ids)
             pdf.savefig()
             plt.close()
 
-            fig = plt.figure()
-            graph_basequality(all_ids, fig)
+            #fig = plt.figure()
+            graph_basequality(all_ids)
             pdf.savefig()
             plt.close()
 
-            fig = plt.figure()
-            graph_basenvert(all_ids, fig)
+            #fig = plt.figure()
+            graph_basenvert(all_ids)
             pdf.savefig()
             plt.close()
+
+            #fig = plt.figure()
+            graph_basenvert_abr(all_ids)
+            pdf.savefig()
+            plt.close()
+
+            #fig = plt.figure()
+            graph_nshare(all_ids)
+            pdf.savefig()
+            plt.close()
+            end = time.time()
+            print(end-start)
+            print("graphen fertig")
 
     else:
         fig = plt.figure()
@@ -502,6 +570,10 @@ def main():
         plt.show()
         graph_basenvert(all_ids, fig)
         plt.show()
+        graph_basenvert_abr(all_ids, fig)
+        plt.show()
+        graph_nshare(all_ids, fig)
+        plt.show()
 
     tabelle_speichern(all_ids, phred, read_count, arguments.save_table)
 
@@ -510,17 +582,3 @@ if __name__ == "__main__":
     main()
     end = time.time()
     print(end-start)
-
-
-
-# https://pypi.org/project/tabulate/
-# test_table = {"c":[500, 500, 30], "b":[30, 40, 2], "a":[40, 40, 5]}
-# print(tabulate((test_table), headers="keys"))
-# file = open("/home/ailysha/abschluss/table.txt","w+")
-# file.write(tabulate((test_table), headers="keys"))
-
-#seaborn
-# sns.set(style="darkgrid")
-# set = dataset
-# sns.relplot(x="timepoint", y="signal", kind="line", data=set)
-# plt.show()
