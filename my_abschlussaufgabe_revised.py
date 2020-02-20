@@ -19,73 +19,60 @@ class Read:
     def __init__(self, content, id, phred, alphabet, orig_quality, trim_quality):
         self.length = len(content[1])
         self.gc = (content[1].count("G") + content[1].count("C"))/self.length #in decimal - between 0 and 1
-        self.name = content[0].split()[0] #ID taken from firt line
+        self.name = content[0].split()[0] #ID taken from first line
         self.orig_quality = orig_quality
         self.quality = trim_quality
-        self.sequenz = content[1][0:len(self.quality)] #sequence-string
+        self.sequenz = content[1][0:len(self.quality)] #Sequence-string
         self.mean_qual_trimmed = np.mean(trim_quality)
         self.mean_qual_untrimmed = np.mean(orig_quality)
         self.trimmed_length = len(trim_quality)
 
 
 def parser():
-    """Parse command line input when starting script."""
+    """Parse command line input when executing script from command line."""
     input_parser = argparse.ArgumentParser(description="Qualitätsauswertung für FASTA-Dateien")
     input_parser.add_argument(
         "Dateipfad",
-        help="Dateipfad zur FASTA-Datei"
+        help="File path to FASTA-file."
         )
     input_parser.add_argument(
         "-p", "--phred",
         dest="phred",
         default=None,
-        help="Optionale manuelle Angabe des Phred-Formats, 33 oder 64"
+        help="Optional manual input of the phred format, 33 or 64. If the script cannot detect it automatically, try specifying."
         )
     input_parser.add_argument(
         "-t", "--trim",
         dest="trim_val",
-        help="Optionale manuelle Angabe des Trimming-Scores",
+        help="Optional manual input of the average k-mer score for trimming. Default 25.",
         default=25
         )
     input_parser.add_argument(
         "-c", "--cutoff",
         dest="cutoff",
-        help="Optionale manuelle Angabe des Durchschnittscores, bei dem ein Read komplett verworfen wird.",
+        help="Optional manual input of the average score under which a read is completely discarded. Default 20.",
         default=20
         )
     input_parser.add_argument(
         "-m", "--minl",
         dest="minlength",
-        help="Optionale manuelle Angabe der minimalen Länge in Basen, die ein getrimmter Read bei der Auswertung haben muss.",
+        help="Optional manual input for the minimum base length a read needs to have after trimming. Default 20.",
         default=20
         )
     input_parser.add_argument(
         "-tab", "--table",
         dest="save_table",
-        help="Optionale Angabe eines Dateipfades zum Speichern der Datentabelle",
+        help="Optional manual input of filepath to save resulting data table under. Default 'Datentabelle.csv'.",
         default="Datentabelle.csv"
         )
     input_parser.add_argument(
         "-plt", "--plot",
         dest="save_plot",
-        help="Optionale Angabe eines Dateipfades zum Speichern der Datenplots",
+        help="Optional manual input of filepath to save resulting plots under. If left blank, graphs are given out as matplotlib-pop up.",
         )
-    arguments = input_parser.parse_args() #Erstellen dictionary, Zugriff auf Argument über Namen
+    arguments = input_parser.parse_args() #Creates a dictionary, access to argument by name
 
     return arguments
-
-
-def alphabet_ascii(phred, ascii):
-    """Create dictionary with scores for ASCII by given phred format."""
-    alphabet = None
-
-    if phred == "33": #check for phred format
-        alphabet = {char:value-33 for value,char in enumerate(ascii,33) if value < 74} #make dictionary w ascii-character + phred score
-
-    elif phred == "64":
-        alphabet = {char:value-64 for value,char in enumerate(ascii,33) if value > 63 and value < 105} #make dictionary w ascii-character + phred score
-
-    return alphabet
 
 
 def phred_bestimmung(datei, ascii, phred=None):
@@ -106,10 +93,23 @@ def phred_bestimmung(datei, ascii, phred=None):
                 break
 
             else:
-                print("Phred-Score nicht bestimmbar. Bitte manuell mit -p eingeben.")
+                print("Could not recognize phred format. Please specify manually by -p argument.")
                 quit()
 
     return phred
+
+
+def alphabet_ascii(phred, ascii):
+    """Create dictionary with scores for ASCII characters by phred format."""
+    alphabet = None
+
+    if phred == "33":
+        alphabet = {char:value-33 for value,char in enumerate(ascii,33) if value < 74}
+
+    elif phred == "64": 
+        alphabet = {char:value-64 for value,char in enumerate(ascii,33) if value > 63 and value < 105} 
+
+    return alphabet
 
 
 def qualitaet(content, alphabet, phred):
@@ -147,15 +147,10 @@ def trimming(scores, trim_val):
         return scores
 
 def calc_data(dict_reads, phred):
+    """Calculate all needed specifications of read inputs. 
+    Save in pandas dataseries for later use.
+    """
     name, orig_length, trim_length, orig_qual, trim_qual, gc_con, mean_qual_trim_base, sequences = [[],[],[],[],[],[],[],[]]
-
-    qual_pos_sterr = []
-    qual_pos_mean = []
-    dict_base_pos = {}
-    bases = ["A", "C", "G", "T", "N"]
-    count = 0
-    read_count = len(dict_reads)
-
     for item in dict_reads:
         name.append(item.name)
         orig_length.append(item.length)
@@ -165,8 +160,15 @@ def calc_data(dict_reads, phred):
         gc_con.append(round(item.gc, 2)*100)
         mean_qual_trim_base.append(item.quality)
         sequences.append(item.sequenz)
-
+        
+    qual_pos_sterr = []
+    qual_pos_mean = []
+    dict_base_pos = {}
+    bases = ["A", "C", "G", "T", "N"]
+    count = 0
+    read_count = len(dict_reads)
     zip_sequenz = list(zip_longest(*sequences, fillvalue=""))
+    
     for letter in bases:
         mean = [i.count(letter)/len("".join(i))*100 for i in zip_sequenz]
         dict_base_pos[letter] = [np.nanmean(pack) for pack in [mean[teil:teil+5] for teil in range(0, len(mean), 5)]]
@@ -206,8 +208,9 @@ def calc_data(dict_reads, phred):
 
     return series_data
 
-def graph_gc(series_data): #opimize
-    """Create subplot for gc-percentages per read."""
+
+def graph_gc(series_data):
+    """Create histogram for gc-percentages per read."""
     fig = plt.figure()
     ax = fig.subplots(1, 1)
     fig.subplots_adjust(hspace=0.5)
@@ -229,7 +232,7 @@ def graph_gc(series_data): #opimize
 
 
 def graph_len_count(series_data):
-    """Create graph showing read length distribution over the reads."""
+    """Create histograms showing read length distribution over the reads before and after trimming."""
     maxLen = series_data["Max Length before Trimming"]
 
     fig = plt.figure()
@@ -268,7 +271,7 @@ def graph_len_count(series_data):
 
 
 def graph_scores(series_data):
-    """Create subplot for mean scores per read."""
+    """Create histograms for mean scores per read before and after trimming.."""
     fig = plt.figure()
     ax1, ax2 = fig.subplots(2, 1, sharex=True, sharey=True)
     fig.subplots_adjust(hspace=0.2)
@@ -305,7 +308,7 @@ def graph_scores(series_data):
 
 
 def graph_basequality(series_data):
-    """Show the quality of all Read positions"""
+    """Create errorbar plot to show the average quality and standard deviation at each read position."""
     fig = plt.figure()
     ax = fig.subplots(1, 1, sharex=True, sharey=True)
     ax.set(
@@ -330,7 +333,9 @@ def graph_basequality(series_data):
 
 
 def graph_basenvert(series_data):
-    """Show the distribution of all bases"""
+    """Create line plot to show the average distribution of all bases at each read position.
+    For better readability, use averages of packs of 5.
+    """
     colors=["red", "green", "blue", "deeppink", "purple"]
     bases = ["A", "C", "G", "T", "N"]
     counter = 0
@@ -364,7 +369,11 @@ def graph_basenvert(series_data):
 
 
 def graph_basenvert_abr(series_data):
-    """Show the distribution of all bases"""
+    """Create subplots to show the average distribution of each base at each read position.
+    For better readability, use averages of packs of 5.
+    Same as above plot, but split up for each base for more detailed view.
+    Mind the deviating scale of the x axis.
+    """
     fig = plt.figure()
     fig.subplots_adjust(hspace=0.5, wspace=0.3)
     gs = GridSpec(2, 2)
@@ -380,7 +389,6 @@ def graph_basenvert_abr(series_data):
                 lw=0.7,
                 color=colors[counter],
                 )
-
         plt.title(f"Distribution of {letter}", fontdict={"size":10})
         plt.xlabel("Position in Read (BP)",fontdict={"size":8})
         plt.ylabel(f"Share of {letter} (%)",fontdict={"size":8})
@@ -391,6 +399,10 @@ def graph_basenvert_abr(series_data):
 
 
 def graph_nshare(series_data):
+    """Create line plot to show the average content of N for each read position.
+    For better readability, use averages of packs of 5.
+    Same as above plots, but showing only N for more detailed view.
+    Mind the scale of the x axis."""
     fig = plt.figure()
     ax = fig.subplots(1,1)
     sns.lineplot(
@@ -406,7 +418,7 @@ def graph_nshare(series_data):
     return fig
 
 def tabelle_speichern(series_data, dateipfad="Datentabelle.csv"):
-    """Save data stats/attributes as csv table for later review"""
+    """Save data stats/attributes as csv table for later review. """
     with open(dateipfad, "w"):
         series_data.get(["Number of Reads", "Phred-Score Sytem", "Avg Length before Trimming", "Max Length before Trimming", "Avg Length after Trimming", "Max Length after Trimming", "Avg Quality before Trimming", "Avg Quality after Trimming", "Avg GC Share %"]).to_csv(
             path_or_buf=dateipfad,
@@ -486,10 +498,10 @@ def main():
             line_pack = []
 
     all_data_series = calc_data(all_ids, phred)
-    print("Finished reading file and calculations.")
+    print("Finished reading file and calculating necessary values.")
 
-    #Following code is responsible for creation and saving of graphs
-    print("Starting plots.")
+    #Following code is responsible for creation and saving or display of graphs.
+    print("Starting plots...")
     if arguments.save_plot:
         with PdfPages(str(arguments.save_plot)) as pdf:
             #Multipage-pdf with all plots
@@ -545,12 +557,12 @@ def main():
         plt.show()
         graph_nshare(all_data_series)
         plt.show()
-
+    print("Plots finished. Starting table...")
     tabelle_speichern(all_data_series, arguments.save_table)
     print("Table saved.")
 
 if __name__ == "__main__":
-    start = time.time()
+    start = time.time() #Timer for runtime
     main()
     end = time.time()
     print(end-start)
