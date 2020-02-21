@@ -8,11 +8,10 @@ import pandas as pd
 import seaborn as sns
 import time
 import csv
-from alive_progress import alive_bar, config_handler
 from itertools import zip_longest, chain, islice
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.gridspec import GridSpec
-import objgraph
+
 
 
 class Read(object):
@@ -126,7 +125,7 @@ def qualitaet(content, alphabet, phred):
 
 def trimming(scores, trim_val):
     """Trim sequence and quality list by given trim value.
-    Calculate mean score of kmers and cuts off end if lower value found.
+    Calculate mean score of kmers and cut off end if lower value found.
     """
     counter = 0
     summe = 0
@@ -438,7 +437,7 @@ def chunk_gen(generator, chunk):
     it = iter(generator)
     while True:
         item = list(islice(generator, chunk))
-        if not chunk:
+        if not item:
             break
         yield item
 
@@ -463,7 +462,6 @@ def main():
         )
 
     all_ids = (Read(lines, phred, alphabet, qualitaet(lines[3], alphabet, phred), trimming(qualitaet(lines[3], alphabet, phred), trim_val)) for lines in chunk_gen(content, 4) if np.mean(trimming(qualitaet(lines[3], alphabet, phred), trim_val)) > cutoff and len(trimming(qualitaet(lines[3], alphabet, phred), trim_val)) >= minlength)
-    print("Reads created.")
 
     name, orig_length, trim_length, orig_qual, trim_qual, gc_con, mean_qual_trim_base, sequences, qual_pos_sterr, qual_pos_mean, dict_base_pos = calc_data(list(all_ids), phred)
     all_data_series = Series(name, orig_length, trim_length, orig_qual, trim_qual, gc_con, mean_qual_trim_base, sequences, qual_pos_sterr, qual_pos_mean, dict_base_pos, phred)
